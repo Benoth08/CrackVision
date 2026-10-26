@@ -1,0 +1,37 @@
+{
+  "model": "yolox",
+  "variant": "s",
+  "num_classes": 1,
+  "class_names": [
+    "fissure"
+  ],
+  "input_size": 512,
+  "nms": 0.5,
+  "test_conf": 0.01,
+  "prepare": {
+    "scale": 0.5,
+    "tile_size": 512
+  },
+  "best_epoch": 56,
+  "selection_metric": "ap50",
+  "val_metrics": {
+    "ap50_95": 0.67521,
+    "ap50": 0.85905,
+    "ap75": 0.73226,
+    "ar100": 0.73117,
+    "image_auroc": 0.99685
+  },
+  "epochs_run": 60,
+  "train_seconds": 2696.0,
+  "device": "NVIDIA A40",
+  "amp": true,
+  "pretrained": {
+    "url": "https://github.com/Megvii-BaseDetection/YOLOX/releases/download/0.1.1rc0/yolox_s.pth",
+    "sha256": "f55ded7181e1b0c13285c56e7790b8f0e8f8db590fe4edb37f0b7f345c913a30"
+  },
+  "yolox_commit": "6ddff4824372906469a7fae2dc3206c7aa4bbaee",
+  "train_samples": 3930,
+  "train_annotations_sha256": "e8cb8f6a1477061c0b63e0d6cda2e66faa69dfed827ca415192ccec99693f863",
+  "n_val_tiles": 806,
+  "torch": "2.5.1+cu124"
+}
