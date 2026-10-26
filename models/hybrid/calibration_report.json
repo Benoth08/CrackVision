@@ -1,0 +1,94 @@
+{
+  "n_val_tiles": 806,
+  "n_val_positive": 414,
+  "box_fusion": "regression logistique",
+  "n_val_boxes": 1388,
+  "operating_points": {
+    "yolox": {
+      "image_threshold": 0.3390958309173584,
+      "box_threshold": 0.35576682144673005
+    },
+    "autoencoder": {
+      "image_threshold": 0.21273654699325562,
+      "pixel_threshold": 0.20671737506985657
+    },
+    "hybrid": {
+      "image_threshold": 0.34595314732320154,
+      "box_threshold": 0.602746962901935
+    }
+  },
+  "val_image_metrics": {
+    "yolox": {
+      "auroc": 0.9968451148575371,
+      "average_precision": 0.9965370837951245,
+      "f1": 0.983132530120482,
+      "precision": 0.9807692307692307,
+      "recall": 0.9855072463768116,
+      "specificity": 0.9795918367346939,
+      "balanced_accuracy": 0.9825495415557528,
+      "mcc": 0.9652418386899967,
+      "threshold": 0.3390958309173584,
+      "confusion": {
+        "tn": 384,
+        "fp": 8,
+        "fn": 6,
+        "tp": 408
+      }
+    },
+    "autoencoder": {
+      "auroc": 0.9556960465345558,
+      "average_precision": 0.9657546541791959,
+      "f1": 0.8907363420427553,
+      "precision": 0.8761682242990654,
+      "recall": 0.9057971014492754,
+      "specificity": 0.8647959183673469,
+      "balanced_accuracy": 0.8852965099083112,
+      "mcc": 0.7717923871102158,
+      "threshold": 0.21273654699325562,
+      "confusion": {
+        "tn": 339,
+        "fp": 53,
+        "fn": 39,
+        "tp": 375
+      }
+    },
+    "hybrid": {
+      "auroc": 0.9960255841467021,
+      "average_precision": 0.9962221927498107,
+      "f1": 0.980722891566265,
+      "precision": 0.9783653846153846,
+      "recall": 0.9830917874396136,
+      "specificity": 0.9770408163265306,
+      "balanced_accuracy": 0.9800663018830721,
+      "mcc": 0.9602746247126743,
+      "threshold": 0.34595314732320154,
+      "confusion": {
+        "tn": 383,
+        "fp": 9,
+        "fn": 7,
+        "tp": 407
+      }
+    }
+  },
+  "val_box_metrics_yolox": {
+    "precision": 0.8828996282527881,
+    "recall": 0.8318739054290718,
+    "f1": 0.8566275924256087,
+    "tp": 475,
+    "fp": 63,
+    "fn": 96,
+    "threshold": 0.35576682144673005
+  },
+  "image_model": {
+    "det_max": 2.6693,
+    "det_count": 0.9977,
+    "ae_score_z": 1.1341,
+    "ae_area_frac": -0.0562
+  },
+  "box_model": {
+    "det_logit": 2.9583,
+    "ae_box_z": 0.2448,
+    "ae_box_frac": 0.1695,
+    "box_log_area": 0.1542
+  }
+}
