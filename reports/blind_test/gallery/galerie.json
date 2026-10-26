@@ -1,0 +1,62 @@
+[
+  {
+    "photo_id": "490",
+    "reason": "fissure la plus étendue",
+    "n_boxes": 11,
+    "n_unknown": 0,
+    "crack_ratio": 0.0350991669816074,
+    "n_components": 1,
+    "tiles_fn": 0,
+    "tiles_fp": 1
+  },
+  {
+    "photo_id": "027",
+    "reason": "fissure la plus fine",
+    "n_boxes": 7,
+    "n_unknown": 0,
+    "crack_ratio": 0.005511135781473,
+    "n_components": 1,
+    "tiles_fn": 0,
+    "tiles_fp": 0
+  },
+  {
+    "photo_id": "445",
+    "reason": "le plus de fissures distinctes",
+    "n_boxes": 7,
+    "n_unknown": 0,
+    "crack_ratio": 0.0105223030570252,
+    "n_components": 6,
+    "tiles_fn": 0,
+    "tiles_fp": 0
+  },
+  {
+    "photo_id": "498",
+    "reason": "cas médian",
+    "n_boxes": 7,
+    "n_unknown": 0,
+    "crack_ratio": 0.0125398925002099,
+    "n_components": 3,
+    "tiles_fn": 0,
+    "tiles_fp": 0
+  },
+  {
+    "photo_id": "555",
+    "reason": "le plus d'erreurs du modèle hybride",
+    "n_boxes": 10,
+    "n_unknown": 1,
+    "crack_ratio": 0.0291914026413034,
+    "n_components": 2,
+    "tiles_fn": 2,
+    "tiles_fp": 0
+  },
+  {
+    "photo_id": "083",
+    "reason": "tirée au hasard",
+    "n_boxes": 5,
+    "n_unknown": 1,
+    "crack_ratio": 0.0099239155538758,
+    "n_components": 2,
+    "tiles_fn": 0,
+    "tiles_fp": 0
+  }
+]

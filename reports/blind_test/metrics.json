@@ -1,0 +1,263 @@
+{
+  "split": "blind_test",
+  "manifest_digest": "9d5f4b7508a6f3a6691e12d7a858329889905ec175d249a24cbe8ec00da149b5",
+  "n_tiles": 810,
+  "n_positive": 404,
+  "n_photos": 69,
+  "operating_points": {
+    "yolox": {
+      "image_threshold": 0.3390958309173584,
+      "box_threshold": 0.35576682144673005
+    },
+    "autoencoder": {
+      "image_threshold": 0.21273654699325562,
+      "pixel_threshold": 0.20671737506985657
+    },
+    "hybrid": {
+      "image_threshold": 0.34595314732320154,
+      "box_threshold": 0.602746962901935
+    }
+  },
+  "detection": {
+    "yolox": {
+      "ap50_95": 0.6521242347875322,
+      "ap50": 0.867773628170361,
+      "ap75": 0.7107955243210207,
+      "ar100": 0.7247038917089679,
+      "box_at_threshold": {
+        "precision": 0.85431654676259,
+        "recall": 0.8037225042301185,
+        "f1": 0.8282476024411509,
+        "tp": 475,
+        "fp": 81,
+        "fn": 116,
+        "threshold": 0.35576682144673005
+      },
+      "ap50_ci": {
+        "value": 0.867773628170361,
+        "low": 0.8400444744541762,
+        "high": 0.8933644070756233,
+        "n": 1000
+      }
+    },
+    "hybrid": {
+      "ap50_95": 0.648507569810284,
+      "ap50": 0.868006075338146,
+      "ap75": 0.7095440852452913,
+      "ar100": 0.7247038917089679,
+      "box_at_threshold": {
+        "precision": 0.8679245283018868,
+        "recall": 0.7783417935702199,
+        "f1": 0.8206958073148974,
+        "tp": 460,
+        "fp": 70,
+        "fn": 131,
+        "threshold": 0.602746962901935
+      },
+      "ap50_ci": {
+        "value": 0.868006075338146,
+        "low": 0.8409411579361402,
+        "high": 0.8945525893290441,
+        "n": 1000
+      }
+    }
+  },
+  "image": {
+    "yolox": {
+      "auroc": 0.9969730039506414,
+      "average_precision": 0.9972037405815544,
+      "f1": 0.9765142150803461,
+      "precision": 0.9753086419753086,
+      "recall": 0.9777227722772277,
+      "specificity": 0.9753694581280788,
+      "balanced_accuracy": 0.9765461152026533,
+      "mcc": 0.9530893250747683,
+      "threshold": 0.3390958309173584,
+      "confusion": {
+        "tn": 396,
+        "fp": 10,
+        "fn": 9,
+        "tp": 395
+      },
+      "ci95": {
+        "auroc": {
+          "low": 0.9934975778968305,
+          "high": 0.9993326068858875,
+          "n": 2000
+        },
+        "average_precision": {
+          "low": 0.9942708893484155,
+          "high": 0.9993360948488632,
+          "n": 2000
+        },
+        "f1": {
+          "low": 0.9656902397372537,
+          "high": 0.986595337537104,
+          "n": 2000
+        },
+        "mcc": {
+          "low": 0.9308707666433932,
+          "high": 0.9729356810826187,
+          "n": 2000
+        },
+        "balanced_accuracy": {
+          "low": 0.9654250963697218,
+          "high": 0.986544782793372,
+          "n": 2000
+        }
+      }
+    },
+    "autoencoder": {
+      "auroc": 0.956835585036336,
+      "average_precision": 0.96726414221651,
+      "f1": 0.9006134969325154,
+      "precision": 0.8929440389294404,
+      "recall": 0.9084158415841584,
+      "specificity": 0.8916256157635468,
+      "balanced_accuracy": 0.9000207286738526,
+      "mcc": 0.8001268287966637,
+      "threshold": 0.21273654699325562,
+      "confusion": {
+        "tn": 362,
+        "fp": 44,
+        "fn": 37,
+        "tp": 367
+      },
+      "ci95": {
+        "auroc": {
+          "low": 0.9400235327316206,
+          "high": 0.9725320685469478,
+          "n": 2000
+        },
+        "average_precision": {
+          "low": 0.9566853163844414,
+          "high": 0.9781024159499032,
+          "n": 2000
+        },
+        "f1": {
+          "low": 0.8776242009850537,
+          "high": 0.9234680145967225,
+          "n": 2000
+        },
+        "mcc": {
+          "low": 0.7479842784281743,
+          "high": 0.8506452709238362,
+          "n": 2000
+        },
+        "balanced_accuracy": {
+          "low": 0.8739019372482176,
+          "high": 0.9254916788641664,
+          "n": 2000
+        }
+      }
+    },
+    "hybrid": {
+      "auroc": 0.9937387211627566,
+      "average_precision": 0.9955589410834689,
+      "f1": 0.9777227722772277,
+      "precision": 0.9777227722772277,
+      "recall": 0.9777227722772277,
+      "specificity": 0.9778325123152709,
+      "balanced_accuracy": 0.9777776422962493,
+      "mcc": 0.9555552845924986,
+      "threshold": 0.34595314732320154,
+      "confusion": {
+        "tn": 397,
+        "fp": 9,
+        "fn": 9,
+        "tp": 395
+      },
+      "ci95": {
+        "auroc": {
+          "low": 0.9866257122882587,
+          "high": 0.9989557585648969,
+          "n": 2000
+        },
+        "average_precision": {
+          "low": 0.9912950805345389,
+          "high": 0.9990676501984913,
+          "n": 2000
+        },
+        "f1": {
+          "low": 0.9675,
+          "high": 0.9874371859296482,
+          "n": 2000
+        },
+        "mcc": {
+          "low": 0.93392531062961,
+          "high": 0.9752545724532601,
+          "n": 2000
+        },
+        "balanced_accuracy": {
+          "low": 0.9669585682706656,
+          "high": 0.9876168771834095,
+          "n": 2000
+        }
+      }
+    }
+  },
+  "pixel_autoencoder": {
+    "pixel_auroc": 0.9768487803964585,
+    "pixel_ap": 0.789191996952493
+  },
+  "hybrid_levels": {
+    "fissuree": {
+      "anomalie_non_classee": 5,
+      "fissure": 391,
+      "sain": 8
+    },
+    "saine": {
+      "anomalie_non_classee": 26,
+      "fissure": 7,
+      "sain": 373
+    }
+  },
+  "unknown_regions": 76,
+  "latency": {
+    "yolox_ms": 5.44320286666963,
+    "autoencoder_ms": 2.5293916309350113,
+    "hybrid_ms": 9.554081834510635,
+    "device": "cuda",
+    "batch_size": 32
+  },
+  "bootstrap": {
+    "resamples": 2000,
+    "unit": "photo",
+    "seed": 42
+  },
+  "stress_test_hors_classe": {
+    "n_tiles": 100,
+    "fausses_alarmes_sans_defaut": {
+      "yolox": 0.04,
+      "autoencoder": 0.12,
+      "hybrid": 0.04,
+      "hybrid_avec_filet": 0.1
+    },
+    "defauts": {
+      "tache_humidite": {
+        "yolox": 0.04,
+        "autoencoder": 0.12,
+        "hybrid": 0.04,
+        "hybrid_avec_filet": 0.05
+      },
+      "efflorescence": {
+        "yolox": 0.04,
+        "autoencoder": 0.12,
+        "hybrid": 0.04,
+        "hybrid_avec_filet": 0.04
+      },
+      "rouille": {
+        "yolox": 0.04,
+        "autoencoder": 0.12,
+        "hybrid": 0.04,
+        "hybrid_avec_filet": 0.04
+      },
+      "eclat": {
+        "yolox": 0.04,
+        "autoencoder": 0.14,
+        "hybrid": 0.04,
+        "hybrid_avec_filet": 0.07
+      }
+    }
+  }
+}

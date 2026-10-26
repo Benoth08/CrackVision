@@ -1,0 +1,5 @@
+# Serveur de suivi et registre MLflow (image "mlflow")
+mlflow==3.4.0
+psycopg2-binary==2.9.10
+# MLflow 3.4 importe sqlalchemy.pool.FallbackAsyncAdaptedQueuePool, absent des versions recentes
+sqlalchemy==2.0.36

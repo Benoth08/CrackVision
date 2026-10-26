@@ -1,0 +1,9 @@
+# Service d'inference (image "api")
+-r base.txt
+fastapi==0.115.6
+uvicorn==0.32.1
+python-multipart==0.0.20
+pydantic==2.10.3
+prometheus-client==0.21.1
+mlflow-skinny==3.4.0
+pandas==2.2.3

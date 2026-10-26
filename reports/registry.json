@@ -1,0 +1,23 @@
+{
+  "date": "20261023-211404",
+  "git_commit": "256e2cbe97c9876b2735ce17f2223bc3a98a013b",
+  "parent_run_id": "a19e91bb05e44378873949cbad429d27",
+  "versions": {
+    "yolox": "1",
+    "autoencoder": "1",
+    "hybrid": "1"
+  },
+  "alias": "champion",
+  "gates": {
+    "yolox_ap50": true,
+    "autoencoder_auroc": true,
+    "hybrid_f1": true
+  },
+  "better_than_champion": true,
+  "previous_champion": null,
+  "key_metrics": {
+    "yolox": 0.867773628170361,
+    "autoencoder": 0.956835585036336,
+    "hybrid": 0.9777227722772277
+  }
+}
