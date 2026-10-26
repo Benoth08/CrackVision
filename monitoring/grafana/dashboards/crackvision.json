@@ -1,0 +1,176 @@
+{
+  "uid": "crackvision-service",
+  "title": "CrackVision - service et dérive",
+  "description": "Trafic, latence, décisions et indicateurs de dérive de l'API CrackVision",
+  "tags": ["crackvision", "mlops"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": false,
+  "refresh": "30s",
+  "time": { "from": "now-6h", "to": "now" },
+  "templating": { "list": [] },
+  "annotations": { "list": [] },
+  "panels": [
+    {
+      "id": 1, "type": "stat", "title": "Modèle servi",
+      "gridPos": { "x": 0, "y": 0, "w": 6, "h": 4 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "refId": "A", "expr": "max by (version, source) (crackvision_model_info)",
+                    "legendFormat": "version {{version}} - {{source}}", "instant": true }],
+      "options": { "textMode": "name", "colorMode": "none", "graphMode": "none",
+                   "reduceOptions": { "calcs": ["lastNotNull"] } }
+    },
+    {
+      "id": 2, "type": "stat", "title": "Chargés",
+      "gridPos": { "x": 6, "y": 0, "w": 3, "h": 4 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "refId": "A", "expr": "max(crackvision_model_ready)", "instant": true }],
+      "fieldConfig": { "defaults": {
+        "mappings": [{ "type": "value", "options": {
+          "0": { "text": "Non", "color": "#d03b3b" }, "1": { "text": "Oui", "color": "#0ca30c" } } }],
+        "thresholds": { "mode": "absolute", "steps": [{ "color": "#d03b3b", "value": null },
+                                                      { "color": "#0ca30c", "value": 1 }] } } },
+      "options": { "colorMode": "value", "graphMode": "none", "reduceOptions": { "calcs": ["lastNotNull"] } }
+    },
+    {
+      "id": 3, "type": "stat", "title": "Prédictions / min",
+      "gridPos": { "x": 9, "y": 0, "w": 4, "h": 4 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "refId": "A", "expr": "sum(rate(crackvision_requests_total{endpoint=\"/predict\"}[5m])) * 60" }],
+      "fieldConfig": { "defaults": { "unit": "short", "decimals": 1, "color": { "mode": "fixed", "fixedColor": "#2a78d6" } } },
+      "options": { "colorMode": "none", "graphMode": "area", "reduceOptions": { "calcs": ["lastNotNull"] } }
+    },
+    {
+      "id": 4, "type": "stat", "title": "Erreurs 5xx",
+      "gridPos": { "x": 13, "y": 0, "w": 3, "h": 4 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "refId": "A", "expr": "(sum(rate(crackvision_requests_total{endpoint=\"/predict\",status=~\"5..\"}[5m])) or vector(0)) / clamp_min(sum(rate(crackvision_requests_total{endpoint=\"/predict\"}[5m])), 1e-9)" }],
+      "fieldConfig": { "defaults": { "unit": "percentunit", "decimals": 1,
+        "thresholds": { "mode": "absolute", "steps": [{ "color": "#0ca30c", "value": null },
+                                                      { "color": "#d03b3b", "value": 0.05 }] } } },
+      "options": { "colorMode": "value", "graphMode": "none", "reduceOptions": { "calcs": ["lastNotNull"] } }
+    },
+    {
+      "id": 5, "type": "stat", "title": "Signalées (24 h)",
+      "gridPos": { "x": 16, "y": 0, "w": 4, "h": 4 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "refId": "A", "expr": "sum(increase(crackvision_decisions_total{model=\"hybrid\",level!=\"sain\"}[24h])) / clamp_min(sum(increase(crackvision_decisions_total{model=\"hybrid\"}[24h])), 1e-9)" }],
+      "fieldConfig": { "defaults": { "unit": "percentunit", "decimals": 0, "color": { "mode": "fixed", "fixedColor": "#1baf7a" } } },
+      "options": { "colorMode": "none", "graphMode": "none", "reduceOptions": { "calcs": ["lastNotNull"] } }
+    },
+    {
+      "id": 6, "type": "stat", "title": "Latence p95",
+      "gridPos": { "x": 20, "y": 0, "w": 4, "h": 4 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "refId": "A", "expr": "histogram_quantile(0.95, sum by (le) (rate(crackvision_request_latency_seconds_bucket[5m])))" }],
+      "fieldConfig": { "defaults": { "unit": "s", "decimals": 2,
+        "thresholds": { "mode": "absolute", "steps": [{ "color": "#0ca30c", "value": null },
+                                                      { "color": "#d03b3b", "value": 8 }] } } },
+      "options": { "colorMode": "value", "graphMode": "area", "reduceOptions": { "calcs": ["lastNotNull"] } }
+    },
+    {
+      "id": 7, "type": "timeseries", "title": "Requêtes de prédiction par modèle (req/s)",
+      "gridPos": { "x": 0, "y": 4, "w": 12, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "refId": "A", "expr": "sum by (model) (rate(crackvision_requests_total{endpoint=\"/predict\"}[5m]))", "legendFormat": "{{model}}" }],
+      "fieldConfig": { "defaults": { "unit": "reqps", "custom": { "lineWidth": 2, "fillOpacity": 0 } },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "yolox" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#2a78d6" } }] },
+          { "matcher": { "id": "byName", "options": "autoencoder" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#eb6834" } }] },
+          { "matcher": { "id": "byName", "options": "hybrid" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#1baf7a" } }] }
+        ] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } }
+    },
+    {
+      "id": 8, "type": "timeseries", "title": "Latence p95 par modèle",
+      "gridPos": { "x": 12, "y": 4, "w": 12, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "refId": "A", "expr": "histogram_quantile(0.95, sum by (le, model) (rate(crackvision_request_latency_seconds_bucket[5m])))", "legendFormat": "{{model}}" }],
+      "fieldConfig": { "defaults": { "unit": "s", "custom": { "lineWidth": 2, "fillOpacity": 0,
+          "thresholdsStyle": { "mode": "line" } },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "transparent", "value": null },
+                                                        { "color": "#d03b3b", "value": 8 }] } },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "yolox" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#2a78d6" } }] },
+          { "matcher": { "id": "byName", "options": "autoencoder" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#eb6834" } }] },
+          { "matcher": { "id": "byName", "options": "hybrid" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#1baf7a" } }] }
+        ] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } }
+    },
+    {
+      "id": 9, "type": "timeseries", "title": "Décisions du modèle hybride (par 15 min)",
+      "gridPos": { "x": 0, "y": 12, "w": 12, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "refId": "A", "expr": "sum by (level) (increase(crackvision_decisions_total{model=\"hybrid\"}[15m]))", "legendFormat": "{{level}}" }],
+      "fieldConfig": { "defaults": { "unit": "short", "custom": { "drawStyle": "bars", "fillOpacity": 80, "lineWidth": 1,
+          "stacking": { "mode": "normal" } } },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "fissure" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#d03b3b" } }] },
+          { "matcher": { "id": "byName", "options": "anomalie_non_classee" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#ec835a" } }] },
+          { "matcher": { "id": "byName", "options": "sain" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#0ca30c" } }] }
+        ] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } }
+    },
+    {
+      "id": 10, "type": "timeseries", "title": "Dérive : score d'anomalie moyen (centré-réduit sur le béton sain)",
+      "description": "Proche de 0 quand les images ressemblent aux données d'entraînement. L'alerte de dérive se déclenche au-delà de 2 sur 6 h.",
+      "gridPos": { "x": 12, "y": 12, "w": 12, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "refId": "A", "expr": "(sum(rate(crackvision_anomaly_score_sum[1h])) / clamp_min(sum(rate(crackvision_anomaly_score_count[1h])), 1e-9) - scalar(max(crackvision_anomaly_reference{stat=\"mean\"}))) / scalar(max(crackvision_anomaly_reference{stat=\"std\"}))", "legendFormat": "moyenne glissante 1 h" }],
+      "fieldConfig": { "defaults": { "unit": "none", "decimals": 2, "color": { "mode": "fixed", "fixedColor": "#eb6834" },
+          "custom": { "lineWidth": 2, "fillOpacity": 0, "thresholdsStyle": { "mode": "line+area" } },
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "transparent", "value": null },
+                                                        { "color": "rgba(208,59,59,0.15)", "value": 2 }] } } },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" } }
+    },
+    {
+      "id": 11, "type": "heatmap", "title": "Distribution du score d'anomalie des images reçues",
+      "gridPos": { "x": 0, "y": 20, "w": 12, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "refId": "A", "expr": "sum by (le) (increase(crackvision_anomaly_score_bucket[15m]))", "format": "heatmap", "legendFormat": "{{le}}" }],
+      "options": { "calculate": false, "yAxis": { "axisLabel": "score d'anomalie" },
+                   "color": { "mode": "scheme", "scheme": "Oranges", "steps": 64 },
+                   "cellGap": 2, "tooltip": { "show": true, "yHistogram": true } }
+    },
+    {
+      "id": 12, "type": "timeseries", "title": "Luminosité moyenne des images reçues (0-255)",
+      "gridPos": { "x": 12, "y": 20, "w": 12, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "refId": "A", "expr": "sum(rate(crackvision_input_brightness_sum[1h])) / clamp_min(sum(rate(crackvision_input_brightness_count[1h])), 1e-9)", "legendFormat": "moyenne glissante 1 h" }],
+      "fieldConfig": { "defaults": { "unit": "none", "min": 0, "max": 255, "color": { "mode": "fixed", "fixedColor": "#2a78d6" },
+          "custom": { "lineWidth": 2, "fillOpacity": 0 } } },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" } }
+    },
+    {
+      "id": 13, "type": "timeseries", "title": "Confiance médiane des fissures retenues",
+      "gridPos": { "x": 0, "y": 28, "w": 8, "h": 7 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "refId": "A", "expr": "histogram_quantile(0.5, sum by (le, model) (rate(crackvision_detection_confidence_bucket[1h])))", "legendFormat": "{{model}}" }],
+      "fieldConfig": { "defaults": { "unit": "percentunit", "min": 0, "max": 1, "custom": { "lineWidth": 2 } },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "yolox" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#2a78d6" } }] },
+          { "matcher": { "id": "byName", "options": "hybrid" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "#1baf7a" } }] }
+        ] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" } }
+    },
+    {
+      "id": 14, "type": "timeseries", "title": "Anomalies non classées (filet de sécurité) par heure",
+      "gridPos": { "x": 8, "y": 28, "w": 8, "h": 7 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "refId": "A", "expr": "sum(increase(crackvision_unknown_regions_total[1h]))", "legendFormat": "zones" }],
+      "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "fixed", "fixedColor": "#6250d6" },
+          "custom": { "lineWidth": 2, "fillOpacity": 0 } } },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" } }
+    },
+    {
+      "id": 15, "type": "timeseries", "title": "nginx : connexions actives",
+      "gridPos": { "x": 16, "y": 28, "w": 8, "h": 7 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "refId": "A", "expr": "sum(nginx_connections_active)", "legendFormat": "actives" }],
+      "fieldConfig": { "defaults": { "unit": "short", "color": { "mode": "fixed", "fixedColor": "#52514e" },
+          "custom": { "lineWidth": 2, "fillOpacity": 0 } } },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" } }
+    }
+  ]
+}
