@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CrackVision</title>
+<style>
+  :root {
+    --surface: #fcfcfb; --page: #f4f3ef; --ink: #0b0b0b; --ink-2: #52514e; --muted: #898781;
+    --line: #e1e0d9; --accent: #1baf7a; --yolox: #2a78d6; --ae: #eb6834; --hybrid: #1baf7a;
+    --unknown: #6250d6; --danger: #d03b3b; --ok: #0ca30c;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --surface: #1a1a19; --page: #0d0d0d; --ink: #f0efec; --ink-2: #c3c2b7;
+            --line: #2c2c2a; --yolox: #3987e5; --ae: #d95926; --hybrid: #199e70; --unknown: #9085e9; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--page); color: var(--ink);
+         font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  header { padding: 20px 24px 8px; max-width: 1200px; margin: 0 auto; }
+  header h1 { margin: 0; font-size: 22px; }
+  header p { margin: 4px 0 0; color: var(--ink-2); }
+  nav { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 10px; font-size: 14px; }
+  nav a { color: var(--ink-2); }
+  main { max-width: 1200px; margin: 0 auto; padding: 12px 24px 40px;
+         display: grid; grid-template-columns: 320px 1fr; gap: 20px; }
+  @media (max-width: 860px) { main { grid-template-columns: 1fr; padding: 12px 16px 32px; } }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px; }
+  label { display: block; font-size: 13px; color: var(--ink-2); margin: 12px 0 4px; }
+  select, input[type=number], input[type=file] { width: 100%; font: inherit; color: var(--ink);
+         background: var(--page); border: 1px solid var(--line); border-radius: 6px; padding: 7px 8px; }
+  button { margin-top: 16px; width: 100%; font: inherit; font-weight: 600; color: #fff;
+           background: var(--accent); border: 0; border-radius: 6px; padding: 10px; cursor: pointer; }
+  button:disabled { opacity: .5; cursor: wait; }
+  .row { display: flex; gap: 8px; align-items: center; margin-top: 12px; font-size: 14px; }
+  .verdict { font-size: 18px; font-weight: 700; margin: 0 0 4px; }
+  .verdict.defaut { color: var(--danger); } .verdict.sain { color: var(--ok); }
+  .meta { color: var(--ink-2); font-size: 13px; margin: 0; }
+  .stage { position: relative; margin-top: 12px; }
+  canvas { width: 100%; height: auto; display: block; border-radius: 6px; }
+  .legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: 13px; color: var(--ink-2); margin-top: 8px; }
+  .legend span::before { content: ""; display: inline-block; width: 14px; height: 3px;
+                         vertical-align: middle; margin-right: 6px; background: var(--c); }
+  table { width: 100%; border-collapse: collapse; margin-top: 14px; font-size: 13px;
+          font-variant-numeric: tabular-nums; }
+  th, td { text-align: right; padding: 5px 6px; border-bottom: 1px solid var(--line); }
+  th:first-child, td:first-child { text-align: left; }
+  th { color: var(--ink-2); font-weight: 600; }
+  .note { color: var(--muted); font-size: 12px; margin-top: 10px; }
+  .error { color: var(--danger); }
+</style>
+</head>
+<body>
+<header>
+  <h1>CrackVision</h1>
+  <p>Détection de fissures dans le béton : YOLOX, autoencodeur et modèle hybride.</p>
+  <nav>
+    <a href="/api/docs">API (Swagger)</a>
+    <a href="/grafana/">Grafana</a>
+    <a href="/mlflow/">MLflow</a>
+    <a href="/prometheus/">Prometheus</a>
+    <a href="http://localhost:8091/" id="airflow-link">Airflow</a>
+  </nav>
+</header>
+<main>
+  <section class="card">
+    <form id="form">
+      <label for="file">Photo de surface béton</label>
+      <input id="file" name="file" type="file" accept="image/*" required>
+      <label for="model">Modèle</label>
+      <select id="model">
+        <option value="hybrid">Hybride (supervisé + non supervisé)</option>
+        <option value="yolox">YOLOX (supervisé)</option>
+        <option value="autoencoder">Autoencodeur (non supervisé)</option>
+      </select>
+      <label for="ppm">Calibration (pixels par mm, facultatif)</label>
+      <input id="ppm" type="number" min="0" step="0.1" placeholder="ex. 5">
+      <div class="row">
+        <input id="heat" type="checkbox" checked>
+        <label for="heat" style="margin:0">Superposer la carte d'anomalie</label>
+      </div>
+      <button id="go" type="submit">Analyser</button>
+    </form>
+    <p class="note" id="model-info"></p>
+  </section>
+  <section class="card" id="result">
+    <p class="meta">Déposez une photo puis lancez l'analyse.</p>
+  </section>
+</main>
+<script>
+const $ = (id) => document.getElementById(id);
+const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+$("airflow-link").href = `${location.protocol}//${location.hostname}:8091/`;
+
+fetch("/api/models").then(r => r.ok ? r.json() : null).then(info => {
+  if (info) $("model-info").textContent = `Modèles servis : version ${info.version} (${info.source}).`;
+}).catch(() => {});
+
+function fmt(v, d = 1) { return (v === undefined || v === null) ? "–" : Number(v).toFixed(d); }
+
+function draw(img, body, heatImg) {
+  const canvas = document.createElement("canvas");
+  canvas.width = img.naturalWidth; canvas.height = img.naturalHeight;
+  const ctx = canvas.getContext("2d");
+  ctx.drawImage(img, 0, 0);
+  if (heatImg) {
+    // Rampe d'une seule teinte : opacite proportionnelle a l'anomalie
+    const tmp = document.createElement("canvas");
+    tmp.width = heatImg.naturalWidth; tmp.height = heatImg.naturalHeight;
+    const t = tmp.getContext("2d"); t.drawImage(heatImg, 0, 0);
+    const data = t.getImageData(0, 0, tmp.width, tmp.height);
+    const [r, g, b] = [235, 104, 52];
+    for (let i = 0; i < data.data.length; i += 4) {
+      const a = data.data[i];
+      data.data[i] = r; data.data[i + 1] = g; data.data[i + 2] = b; data.data[i + 3] = a * 0.7;
+    }
+    t.putImageData(data, 0, 0);
+    ctx.drawImage(tmp, 0, 0, canvas.width, canvas.height);
+  }
+  const lw = Math.max(2, canvas.width / 500);
+  const color = { hybrid: css("--hybrid"), yolox: css("--yolox"), autoencoder: css("--ae") }[body.modele];
+  ctx.lineWidth = lw; ctx.font = `${Math.max(12, canvas.width / 90)}px system-ui`;
+  for (const f of body.fissures) {
+    const [x1, y1, x2, y2] = f.boite;
+    ctx.strokeStyle = color; ctx.setLineDash([]); ctx.strokeRect(x1, y1, x2 - x1, y2 - y1);
+    ctx.fillStyle = color; ctx.fillText(`#${f.id} ${f.confiance.toFixed(2)}`, x1 + lw, y1 - lw * 2);
+  }
+  for (const a of body.anomalies_non_classees) {
+    const [x1, y1, x2, y2] = a.boite;
+    ctx.strokeStyle = css("--unknown"); ctx.setLineDash([lw * 3, lw * 2]);
+    ctx.strokeRect(x1, y1, x2 - x1, y2 - y1);
+  }
+  return canvas;
+}
+
+function render(body, canvas) {
+  const res = $("result"); res.innerHTML = "";
+  const verdict = document.createElement("p");
+  verdict.className = `verdict ${body.decision}`;
+  verdict.textContent = body.decision === "defaut"
+    ? `Défaut détecté (${body.niveau.replaceAll("_", " ")})` : "Aucun défaut détecté";
+  const meta = document.createElement("p"); meta.className = "meta";
+  meta.textContent = `Modèle ${body.modele} v${body.version} · score ${fmt(body.score, 3)} (seuil ${fmt(body.seuil, 3)})`
+    + ` · ${body.fissures.length} fissure(s) · ${body.anomalies_non_classees.length} anomalie(s) non classée(s)`
+    + ` · ${body.image.largeur} × ${body.image.hauteur} px · ${fmt(body.latence_ms, 0)} ms`;
+  const stage = document.createElement("div"); stage.className = "stage"; stage.appendChild(canvas);
+  const legend = document.createElement("div"); legend.className = "legend";
+  legend.innerHTML = `<span style="--c:${css(body.modele === "hybrid" ? "--hybrid" : body.modele === "yolox" ? "--yolox" : "--ae")}">fissure</span>`
+    + `<span style="--c:${css("--unknown")}">anomalie non classée</span>`
+    + `<span style="--c:#eb6834">carte d'anomalie</span>`;
+  res.append(verdict, meta, stage, legend);
+  if (body.fissures.length) {
+    const mm = body.fissures[0].mesures.largeur_mm !== undefined;
+    const table = document.createElement("table");
+    const head = ["#", "Confiance", "Largeur", "Hauteur", "Diagonale", "Longueur estimée", "Ouverture moy."];
+    table.innerHTML = `<thead><tr>${head.map(h => `<th>${h}${h === "#" || h === "Confiance" ? "" : mm ? " (mm)" : " (px)"}</th>`).join("")}</tr></thead>`;
+    const rows = body.fissures.map(f => {
+      const m = f.mesures, s = mm ? "_mm" : "_px";
+      return `<tr><td>${f.id}</td><td>${fmt(f.confiance, 2)}</td><td>${fmt(m["largeur" + s])}</td>`
+        + `<td>${fmt(m["hauteur" + s])}</td><td>${fmt(m["diagonale" + s])}</td>`
+        + `<td>${fmt(m["longueur_estimee" + s])}</td><td>${fmt(m["ouverture_moyenne" + s], 2)}</td></tr>`;
+    }).join("");
+    table.insertAdjacentHTML("beforeend", `<tbody>${rows}</tbody>`);
+    res.appendChild(table);
+  }
+  const note = document.createElement("p"); note.className = "note"; note.textContent = body.avertissement;
+  res.appendChild(note);
+}
+
+$("form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const file = $("file").files[0]; if (!file) return;
+  $("go").disabled = true; $("go").textContent = "Analyse en cours…";
+  try {
+    const params = new URLSearchParams({ model: $("model").value, return_heatmap: $("heat").checked });
+    if ($("ppm").value) params.set("pixel_per_mm", $("ppm").value);
+    const form = new FormData(); form.append("file", file);
+    const response = await fetch(`/api/predict?${params}`, { method: "POST", body: form });
+    const body = await response.json();
+    if (!response.ok) throw new Error(body.detail || response.statusText);
+    const img = new Image(); img.src = URL.createObjectURL(file); await img.decode();
+    let heat = null;
+    if (body.carte_anomalie_png) { heat = new Image(); heat.src = `data:image/png;base64,${body.carte_anomalie_png}`; await heat.decode(); }
+    render(body, draw(img, body, heat));
+  } catch (error) {
+    const p = document.createElement("p"); p.className = "error";
+    p.textContent = `Erreur : ${error.message}`;
+    $("result").replaceChildren(p);
+  } finally {
+    $("go").disabled = false; $("go").textContent = "Analyser";
+  }
+});
+</script>
+</body>
+</html>

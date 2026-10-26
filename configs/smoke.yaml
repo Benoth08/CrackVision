@@ -1,0 +1,62 @@
+# =============================================================================
+# Profil "smoke" : surcharge de params.yaml pour verifier tout le pipeline
+# en quelques minutes sur CPU, avec des photos synthetiques.
+# Active par la variable d'environnement CRACKVISION_PROFILE=smoke.
+# Les metriques obtenues n'ont aucune valeur : seul le bon deroulement compte.
+# =============================================================================
+
+data:
+  source: synthetic
+  synthetic:
+    n_photos: 20
+    width: 576
+    height: 384
+    max_cracks: 2
+
+prepare:
+  scale: 1.0
+  tile_size: 192
+  closing_kernel: 3
+  min_component_area: 20
+  healthy_margin: 8
+
+yolox:
+  variant: nano
+  pretrained: false
+  input_size: 192
+  epochs: 2
+  batch_size: 4
+  warmup_epochs: 0
+  no_aug_epochs: 1
+  eval_interval: 1
+  multiscale_range: 0
+  amp: false
+  num_workers: 0
+
+autoencoder:
+  image_size: 64
+  base_channels: 8
+  depth: 3
+  latent_channels: 8
+  epochs: 2
+  batch_size: 8
+  patience: 0
+  blur_sigma: 1.0
+  num_workers: 0
+
+hybrid:
+  cv_folds: 2
+  unknown_min_area: 20
+
+evaluation:
+  bootstrap: 50
+  n_examples: 2
+  pixel_eval_size: 32
+  stress_tiles: 4
+
+promotion:
+  # Noms distincts : un modele de fumee ne remplace jamais un modele reel
+  registry:
+    yolox: crackvision-smoke-yolox
+    autoencoder: crackvision-smoke-autoencoder
+    hybrid: crackvision-smoke-hybrid
