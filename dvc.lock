@@ -1,0 +1,640 @@
+schema: '2.0'
+stages:
+  ingest:
+    cmd: python -m crackvision.cli ingest
+    deps:
+    - path: src/crackvision/data/sources.py
+      hash: md5
+      md5: a8a64f7431694fa658887c7d950291ab
+      size: 4481
+    - path: src/crackvision/data/synthetic.py
+      hash: md5
+      md5: 41d7bb612f655505464543bf9c6845c9
+      size: 3656
+    params:
+      params.yaml:
+        data:
+          source: ozgenel_seg
+          ozgenel_seg:
+            url: 
+              https://data.mendeley.com/public-files/datasets/jwsn7tfbrp/files/88e685a6-e3c5-423d-845f-89e35a457867/file_downloaded
+            sha256: 
+              1b8458ab6f84dc5086e9af8579e2cabccd3d209df97b46622096a4c105d5a6b2
+            archive_name: concreteCrackSegmentationDataset.rar
+            doi: 10.17632/jwsn7tfbrp.1
+            license: CC BY 4.0
+            keep_archive: true
+          synthetic:
+            n_photos: 40
+            width: 1024
+            height: 768
+            max_cracks: 3
+        seed: 42
+    outs:
+    - path: data/raw
+      hash: md5
+      md5: 249515291583da0b97631761431da5b2.dir
+      size: 913260699
+      nfiles: 917
+  index:
+    cmd: python -m crackvision.cli index
+    deps:
+    - path: data/raw
+      hash: md5
+      md5: 249515291583da0b97631761431da5b2.dir
+      size: 913260699
+      nfiles: 917
+    - path: src/crackvision/data/prepare.py
+      hash: md5
+      md5: 03682cb9e8a5ace574015a8cb69aebe8
+      size: 12685
+    params:
+      params.yaml:
+        prepare.closing_kernel: 5
+        prepare.mask_downscale_threshold: 0.25
+        prepare.mask_threshold: 127
+        prepare.min_component_area: 60
+        prepare.scale: 0.5
+    outs:
+    - path: data/interim/photos.csv
+      hash: md5
+      md5: 2ac69befb271ec305c0764d3e75051b5
+      size: 68265
+  split:
+    cmd: python -m crackvision.cli split
+    deps:
+    - path: data/interim/photos.csv
+      hash: md5
+      md5: 2ac69befb271ec305c0764d3e75051b5
+      size: 68265
+    - path: src/crackvision/data/split.py
+      hash: md5
+      md5: 95e0c971b634428c5112f1d4a9a94934
+      size: 3477
+    params:
+      params.yaml:
+        seed: 42
+        split:
+          fractions:
+            train: 0.7
+            val: 0.15
+            blind_test: 0.15
+          ratio_bins: 3
+          component_bins:
+          - 1
+          - 3
+    outs:
+    - path: data/processed/splits
+      hash: md5
+      md5: d6882ed5931b3d4df848a502d98bfa95.dir
+      size: 18230
+      nfiles: 2
+  tile@train:
+    cmd: python -m crackvision.cli tile --split train
+    deps:
+    - path: data/interim/photos.csv
+      hash: md5
+      md5: 2ac69befb271ec305c0764d3e75051b5
+      size: 68265
+    - path: data/processed/splits
+      hash: md5
+      md5: d6882ed5931b3d4df848a502d98bfa95.dir
+      size: 18230
+      nfiles: 2
+    - path: data/raw
+      hash: md5
+      md5: 249515291583da0b97631761431da5b2.dir
+      size: 913260699
+      nfiles: 917
+    - path: src/crackvision/data/coco.py
+      hash: md5
+      md5: 45a3d9564168f10c5a21c41ff372b110
+      size: 1923
+    - path: src/crackvision/data/prepare.py
+      hash: md5
+      md5: 03682cb9e8a5ace574015a8cb69aebe8
+      size: 12685
+    - path: src/crackvision/data/tiling.py
+      hash: md5
+      md5: f9ff576361a747b8bb182453ea09bf76
+      size: 4694
+    params:
+      params.yaml:
+        prepare:
+          scale: 0.5
+          tile_size: 512
+          mask_threshold: 127
+          mask_downscale_threshold: 0.25
+          closing_kernel: 5
+          min_component_area: 60
+          healthy_margin: 16
+          jpeg_quality: 95
+    outs:
+    - path: data/processed/train
+      hash: md5
+      md5: 7db8bf55c32d790b85301307db41ad8c.dir
+      size: 307209476
+      nfiles: 7444
+  tile@val:
+    cmd: python -m crackvision.cli tile --split val
+    deps:
+    - path: data/interim/photos.csv
+      hash: md5
+      md5: 2ac69befb271ec305c0764d3e75051b5
+      size: 68265
+    - path: data/processed/splits
+      hash: md5
+      md5: d6882ed5931b3d4df848a502d98bfa95.dir
+      size: 18230
+      nfiles: 2
+    - path: data/raw
+      hash: md5
+      md5: 249515291583da0b97631761431da5b2.dir
+      size: 913260699
+      nfiles: 917
+    - path: src/crackvision/data/coco.py
+      hash: md5
+      md5: 45a3d9564168f10c5a21c41ff372b110
+      size: 1923
+    - path: src/crackvision/data/prepare.py
+      hash: md5
+      md5: 03682cb9e8a5ace574015a8cb69aebe8
+      size: 12685
+    - path: src/crackvision/data/tiling.py
+      hash: md5
+      md5: f9ff576361a747b8bb182453ea09bf76
+      size: 4694
+    params:
+      params.yaml:
+        prepare:
+          scale: 0.5
+          tile_size: 512
+          mask_threshold: 127
+          mask_downscale_threshold: 0.25
+          closing_kernel: 5
+          min_component_area: 60
+          healthy_margin: 16
+          jpeg_quality: 95
+    outs:
+    - path: data/processed/val
+      hash: md5
+      md5: 39acf01fcd8d8ef7b75820d164147f07.dir
+      size: 65225041
+      nfiles: 1616
+  tile@blind_test:
+    cmd: python -m crackvision.cli tile --split blind_test
+    deps:
+    - path: data/interim/photos.csv
+      hash: md5
+      md5: 2ac69befb271ec305c0764d3e75051b5
+      size: 68265
+    - path: data/processed/splits
+      hash: md5
+      md5: d6882ed5931b3d4df848a502d98bfa95.dir
+      size: 18230
+      nfiles: 2
+    - path: data/raw
+      hash: md5
+      md5: 249515291583da0b97631761431da5b2.dir
+      size: 913260699
+      nfiles: 917
+    - path: src/crackvision/data/coco.py
+      hash: md5
+      md5: 45a3d9564168f10c5a21c41ff372b110
+      size: 1923
+    - path: src/crackvision/data/prepare.py
+      hash: md5
+      md5: 03682cb9e8a5ace574015a8cb69aebe8
+      size: 12685
+    - path: src/crackvision/data/tiling.py
+      hash: md5
+      md5: f9ff576361a747b8bb182453ea09bf76
+      size: 4694
+    params:
+      params.yaml:
+        prepare:
+          scale: 0.5
+          tile_size: 512
+          mask_threshold: 127
+          mask_downscale_threshold: 0.25
+          closing_kernel: 5
+          min_component_area: 60
+          healthy_margin: 16
+          jpeg_quality: 95
+    outs:
+    - path: data/processed/blind_test
+      hash: md5
+      md5: 7deaebf1ffce5e598c7783c94ab4059a.dir
+      size: 65928604
+      nfiles: 1624
+  balance:
+    cmd: python -m crackvision.cli balance
+    deps:
+    - path: data/processed/train
+      hash: md5
+      md5: 7db8bf55c32d790b85301307db41ad8c.dir
+      size: 307209476
+      nfiles: 7444
+    - path: src/crackvision/data/balance.py
+      hash: md5
+      md5: fd31d66a31b06b8423b722d227c0ace7
+      size: 5306
+    params:
+      params.yaml:
+        balance:
+          positive_fraction: 0.5
+          rfs_threshold: 0.25
+          size_bins:
+          - 0.05
+          - 0.25
+          ae_max_tiles: 0
+        seed: 42
+    outs:
+    - path: data/processed/train_balanced
+      hash: md5
+      md5: dfd6b28c208f67726dc44064d49370ad.dir
+      size: 1332760
+      nfiles: 3
+  data_report:
+    cmd: python -m crackvision.cli data-report
+    deps:
+    - path: data/interim/photos.csv
+      hash: md5
+      md5: 2ac69befb271ec305c0764d3e75051b5
+      size: 68265
+    - path: data/processed/blind_test
+      hash: md5
+      md5: 7deaebf1ffce5e598c7783c94ab4059a.dir
+      size: 65928604
+      nfiles: 1624
+    - path: data/processed/splits
+      hash: md5
+      md5: d6882ed5931b3d4df848a502d98bfa95.dir
+      size: 18230
+      nfiles: 2
+    - path: data/processed/train
+      hash: md5
+      md5: 7db8bf55c32d790b85301307db41ad8c.dir
+      size: 307209476
+      nfiles: 7444
+    - path: data/processed/train_balanced
+      hash: md5
+      md5: dfd6b28c208f67726dc44064d49370ad.dir
+      size: 1332760
+      nfiles: 3
+    - path: data/processed/val
+      hash: md5
+      md5: 39acf01fcd8d8ef7b75820d164147f07.dir
+      size: 65225041
+      nfiles: 1616
+    - path: data/raw
+      hash: md5
+      md5: 249515291583da0b97631761431da5b2.dir
+      size: 913260699
+      nfiles: 917
+    - path: src/crackvision/evaluation/figures.py
+      hash: md5
+      md5: a4752d12a41c71daceacb0296c45eeb8
+      size: 20317
+    outs:
+    - path: reports/data
+      hash: md5
+      md5: df47bd3eb172cd1b4d0d394eaa3e8086.dir
+      size: 1485658
+      nfiles: 5
+  train_yolox:
+    cmd: python -m crackvision.cli train-yolox
+    deps:
+    - path: data/processed/train
+      hash: md5
+      md5: 7db8bf55c32d790b85301307db41ad8c.dir
+      size: 307209476
+      nfiles: 7444
+    - path: data/processed/train_balanced
+      hash: md5
+      md5: dfd6b28c208f67726dc44064d49370ad.dir
+      size: 1332760
+      nfiles: 3
+    - path: data/processed/val
+      hash: md5
+      md5: 39acf01fcd8d8ef7b75820d164147f07.dir
+      size: 65225041
+      nfiles: 1616
+    - path: src/crackvision/evaluation/metrics.py
+      hash: md5
+      md5: d34a08ef7bd46f35fb85fcf8d3c2b6f3
+      size: 9024
+    - path: src/crackvision/models/yolox_model.py
+      hash: md5
+      md5: 693a2648952bea896d9bafae9fcd2341
+      size: 4621
+    - path: src/crackvision/training/train_yolox.py
+      hash: md5
+      md5: 5283a4ab8c2249e60911f238e34a59c2
+      size: 12828
+    params:
+      params.yaml:
+        prepare.scale: 0.5
+        prepare.tile_size: 512
+        seed: 42
+        yolox:
+          variant: s
+          pretrained: true
+          input_size: 512
+          epochs: 60
+          batch_size: 16
+          basic_lr_per_img: 0.00015625
+          warmup_epochs: 3
+          no_aug_epochs: 10
+          min_lr_ratio: 0.05
+          weight_decay: 0.0005
+          mosaic_prob: 1.0
+          mixup_prob: 0.0
+          hsv_prob: 1.0
+          flip_prob: 0.5
+          degrees: 10.0
+          translate: 0.1
+          mosaic_scale:
+          - 0.5
+          - 1.5
+          shear: 2.0
+          multiscale_range: 3
+          ema: true
+          amp: true
+          eval_interval: 2
+          patience: 0
+          selection_metric: ap50
+          test_conf: 0.01
+          nms: 0.5
+          num_workers: 6
+          pretrained_weights:
+            nano:
+              url: 
+                https://github.com/Megvii-BaseDetection/YOLOX/releases/download/0.1.1rc0/yolox_nano.pth
+              sha256: 
+                cd28f55fbbc1829f99d9ac9b38a16d259a22889739c8728ea877610201feff7b
+            tiny:
+              url: 
+                https://github.com/Megvii-BaseDetection/YOLOX/releases/download/0.1.1rc0/yolox_tiny.pth
+              sha256: 
+                9de513de589ac98bb92d3bca53b5af7b9acfa9b0bacb831f7999d0f7afaee8f0
+            s:
+              url: 
+                https://github.com/Megvii-BaseDetection/YOLOX/releases/download/0.1.1rc0/yolox_s.pth
+              sha256: 
+                f55ded7181e1b0c13285c56e7790b8f0e8f8db590fe4edb37f0b7f345c913a30
+    outs:
+    - path: models/yolox
+      hash: md5
+      md5: 292590bbaac1b067485b87e87af2ebee.dir
+      size: 35993757
+      nfiles: 3
+  train_autoencoder:
+    cmd: python -m crackvision.cli train-autoencoder
+    deps:
+    - path: data/processed/train
+      hash: md5
+      md5: 7db8bf55c32d790b85301307db41ad8c.dir
+      size: 307209476
+      nfiles: 7444
+    - path: data/processed/train_balanced
+      hash: md5
+      md5: dfd6b28c208f67726dc44064d49370ad.dir
+      size: 1332760
+      nfiles: 3
+    - path: data/processed/val
+      hash: md5
+      md5: 39acf01fcd8d8ef7b75820d164147f07.dir
+      size: 65225041
+      nfiles: 1616
+    - path: src/crackvision/models/autoencoder.py
+      hash: md5
+      md5: 982933f2cf2d0aca7a4effb83c897cd8
+      size: 8072
+    - path: src/crackvision/training/train_autoencoder.py
+      hash: md5
+      md5: c8b43fdfad1563055d1987a6d3cc2331
+      size: 11015
+    params:
+      params.yaml:
+        autoencoder:
+          image_size: 256
+          base_channels: 32
+          depth: 5
+          latent_channels: 8
+          epochs: 60
+          batch_size: 32
+          lr: 0.001
+          weight_decay: 1e-05
+          ssim_weight: 0.5
+          noise_std: 0.1
+          selection: auroc
+          eval_interval: 2
+          patience: 10
+          blur_sigma: 4.0
+          score_topk: 0.01
+          pixel_quantile: 0.995
+          num_workers: 6
+        seed: 42
+    outs:
+    - path: models/autoencoder
+      hash: md5
+      md5: e87a9d4f24af36b2e37bd1fe6f42db2d.dir
+      size: 28579933
+      nfiles: 4
+  calibrate:
+    cmd: python -m crackvision.cli calibrate
+    deps:
+    - path: data/processed/val
+      hash: md5
+      md5: 39acf01fcd8d8ef7b75820d164147f07.dir
+      size: 65225041
+      nfiles: 1616
+    - path: models/autoencoder
+      hash: md5
+      md5: e87a9d4f24af36b2e37bd1fe6f42db2d.dir
+      size: 28579933
+      nfiles: 4
+    - path: models/yolox
+      hash: md5
+      md5: 292590bbaac1b067485b87e87af2ebee.dir
+      size: 35993757
+      nfiles: 3
+    - path: src/crackvision/inference.py
+      hash: md5
+      md5: b7f1cdcb07b76c673089d96f257ea3c4
+      size: 7006
+    - path: src/crackvision/models/hybrid.py
+      hash: md5
+      md5: bbfe41c84dcfd61102501b2e37bd934b
+      size: 7408
+    - path: src/crackvision/training/fit_hybrid.py
+      hash: md5
+      md5: 3f814553444ae17be069ce3a3db1a7ba
+      size: 10017
+    params:
+      params.yaml:
+        evaluation.iou_threshold: 0.5
+        hybrid:
+          det_conf_floor: 0.01
+          box_evidence_topk: 0.1
+          unknown_quantile: 0.999
+          unknown_min_area: 400
+          unknown_max_overlap: 0.1
+          cv_folds: 5
+          logistic_c: 1.0
+        seed: 42
+    outs:
+    - path: models/hybrid
+      hash: md5
+      md5: fdeee0be9aeaddaf0f4dcd7165113b35.dir
+      size: 4406
+      nfiles: 2
+  evaluate@val:
+    cmd: python -m crackvision.cli evaluate --split val
+    deps:
+    - path: data/interim/photos.csv
+      hash: md5
+      md5: 2ac69befb271ec305c0764d3e75051b5
+      size: 68265
+    - path: data/processed/splits
+      hash: md5
+      md5: d6882ed5931b3d4df848a502d98bfa95.dir
+      size: 18230
+      nfiles: 2
+    - path: data/processed/val
+      hash: md5
+      md5: 39acf01fcd8d8ef7b75820d164147f07.dir
+      size: 65225041
+      nfiles: 1616
+    - path: data/raw
+      hash: md5
+      md5: 249515291583da0b97631761431da5b2.dir
+      size: 913260699
+      nfiles: 917
+    - path: models/autoencoder
+      hash: md5
+      md5: e87a9d4f24af36b2e37bd1fe6f42db2d.dir
+      size: 28579933
+      nfiles: 4
+    - path: models/hybrid
+      hash: md5
+      md5: fdeee0be9aeaddaf0f4dcd7165113b35.dir
+      size: 4406
+      nfiles: 2
+    - path: models/yolox
+      hash: md5
+      md5: 292590bbaac1b067485b87e87af2ebee.dir
+      size: 35993757
+      nfiles: 3
+    - path: src/crackvision/evaluation
+      hash: md5
+      md5: 6e1a1dfbd83c9cd0b1b4cdc2cd6572df.dir
+      size: 51768
+      nfiles: 5
+    - path: src/crackvision/inference.py
+      hash: md5
+      md5: b7f1cdcb07b76c673089d96f257ea3c4
+      size: 7006
+    params:
+      params.yaml:
+        evaluation:
+          iou_threshold: 0.5
+          bootstrap: 2000
+          n_examples: 6
+          pixel_eval_size: 128
+          stress_tiles: 100
+        seed: 42
+    outs:
+    - path: reports/val/figures
+      hash: md5
+      md5: 1cde6f384fc0605e9d0c233fe9808813.dir
+      size: 4040793
+      nfiles: 8
+    - path: reports/val/metrics.json
+      hash: md5
+      md5: e759b081f177800f4611d275205f521b
+      size: 5711
+    - path: reports/val/plots
+      hash: md5
+      md5: 18f2e9cb2acf69177851cf4683948993.dir
+      size: 10417
+      nfiles: 6
+    - path: reports/val/predictions.csv
+      hash: md5
+      md5: 35657c9c5086ca180fc8dad4fad8bd9c
+      size: 63831
+  evaluate@blind_test:
+    cmd: python -m crackvision.cli evaluate --split blind_test
+    deps:
+    - path: data/interim/photos.csv
+      hash: md5
+      md5: 2ac69befb271ec305c0764d3e75051b5
+      size: 68265
+    - path: data/processed/blind_test
+      hash: md5
+      md5: 7deaebf1ffce5e598c7783c94ab4059a.dir
+      size: 65928604
+      nfiles: 1624
+    - path: data/processed/splits
+      hash: md5
+      md5: d6882ed5931b3d4df848a502d98bfa95.dir
+      size: 18230
+      nfiles: 2
+    - path: data/raw
+      hash: md5
+      md5: 249515291583da0b97631761431da5b2.dir
+      size: 913260699
+      nfiles: 917
+    - path: models/autoencoder
+      hash: md5
+      md5: e87a9d4f24af36b2e37bd1fe6f42db2d.dir
+      size: 28579933
+      nfiles: 4
+    - path: models/hybrid
+      hash: md5
+      md5: fdeee0be9aeaddaf0f4dcd7165113b35.dir
+      size: 4406
+      nfiles: 2
+    - path: models/yolox
+      hash: md5
+      md5: 292590bbaac1b067485b87e87af2ebee.dir
+      size: 35993757
+      nfiles: 3
+    - path: src/crackvision/evaluation
+      hash: md5
+      md5: 6e1a1dfbd83c9cd0b1b4cdc2cd6572df.dir
+      size: 51768
+      nfiles: 5
+    - path: src/crackvision/inference.py
+      hash: md5
+      md5: b7f1cdcb07b76c673089d96f257ea3c4
+      size: 7006
+    params:
+      params.yaml:
+        evaluation:
+          iou_threshold: 0.5
+          bootstrap: 2000
+          n_examples: 6
+          pixel_eval_size: 128
+          stress_tiles: 100
+        seed: 42
+    outs:
+    - path: reports/blind_test/figures
+      hash: md5
+      md5: 5e9c8188e7a2a2ccc738330ad297b5da.dir
+      size: 3623092
+      nfiles: 9
+    - path: reports/blind_test/metrics.json
+      hash: md5
+      md5: d86abedc2a24c3b6463d3664a8aad87c
+      size: 6490
+    - path: reports/blind_test/plots
+      hash: md5
+      md5: 59a161a8cf1c71a8d8f1ff14a3d52995.dir
+      size: 10225
+      nfiles: 6
+    - path: reports/blind_test/predictions.csv
+      hash: md5
+      md5: 5eb6811b49bb6a7327bcffb0c863a8cb
+      size: 64079

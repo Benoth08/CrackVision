@@ -1,0 +1,271 @@
+# =============================================================================
+# CrackVision - pile MLOps en microservices
+#
+#   docker compose up -d                       service : api, nginx, mlflow, postgres,
+#                                              prometheus, grafana, nginx-exporter
+#   docker compose --profile airflow up -d     + orchestration Airflow 3
+#   docker compose run --rm trainer <cmd>      outils : dvc repro, pytest, cli...
+#
+# Point d'entree unique : http://localhost:8090 (nginx). Airflow : http://localhost:8091
+# Les secrets viennent de .env (modele : .env.example).
+# =============================================================================
+name: crackvision
+
+x-airflow-common: &airflow-common
+  build:
+    context: .
+    dockerfile: docker/airflow/Dockerfile
+  image: crackvision-airflow:3.2.1
+  profiles: ["airflow"]
+  restart: unless-stopped
+  environment: &airflow-env
+    AIRFLOW__CORE__EXECUTOR: LocalExecutor
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:${AIRFLOW_DB_PASSWORD}@postgres:5432/airflow
+    AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+    AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "true"
+    AIRFLOW__CORE__PARALLELISM: "4"
+    AIRFLOW__CORE__AUTH_MANAGER: airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager
+    AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW_FERNET_KEY:-}
+    AIRFLOW__API_AUTH__JWT_SECRET: ${AIRFLOW_JWT_SECRET}
+    AIRFLOW__API__BASE_URL: http://localhost:${AIRFLOW_PORT:-8091}
+    AIRFLOW__API__WORKERS: "1"
+    AIRFLOW__CORE__EXECUTION_API_SERVER_URL: http://airflow-apiserver:8080/execution/
+    AIRFLOW__SCHEDULER__ENABLE_HEALTH_CHECK: "true"
+    AIRFLOW__LOGGING__LOGGING_LEVEL: INFO
+    CRACKVISION_HOST_PROJECT_DIR: ${HOST_PROJECT_DIR}
+    CRACKVISION_TRAINER_IMAGE: crackvision-trainer:latest
+    CRACKVISION_DOCKER_NETWORK: crackvision
+    CRACKVISION_TRAINER_GPU: ${TRAINER_GPU:-false}
+    CRACKVISION_API_URL: http://api:8000
+    MLFLOW_TRACKING_URI: http://mlflow:5000
+    PROMETHEUS_URL: http://prometheus:9090/prometheus
+    ADMIN_TOKEN: ${API_ADMIN_TOKEN}
+  volumes:
+    - ./airflow/dags:/opt/airflow/dags:ro
+    - airflow-logs:/opt/airflow/logs
+    - /var/run/docker.sock:/var/run/docker.sock
+  user: "50000:0"
+  group_add:
+    - "${DOCKER_GID:-0}"
+  networks: [crackvision]
+  depends_on: &airflow-depends
+    postgres:
+      condition: service_healthy
+
+services:
+  # --------------------------------------------------------------- donnees
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: crackvision
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: crackvision
+      AIRFLOW_DB_PASSWORD: ${AIRFLOW_DB_PASSWORD}
+      MLFLOW_DB_PASSWORD: ${MLFLOW_DB_PASSWORD}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./docker/postgres/init-databases.sh:/docker-entrypoint-initdb.d/init-databases.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U crackvision -d crackvision"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    mem_limit: 256m
+    networks: [crackvision]
+
+  # --------------------------------------------------------------- suivi / registre
+  mlflow:
+    build:
+      context: .
+      dockerfile: docker/mlflow/Dockerfile
+    image: crackvision-mlflow:3.4.0
+    restart: unless-stopped
+    command:
+      - --host=0.0.0.0
+      - --port=5000
+      - --workers=1
+      - --static-prefix=/mlflow
+      - --backend-store-uri=postgresql://mlflow:${MLFLOW_DB_PASSWORD}@postgres:5432/mlflow
+      - --artifacts-destination=/mlflow/artifacts
+      - --serve-artifacts
+    volumes:
+      - mlflow-artifacts:/mlflow/artifacts
+    depends_on:
+      postgres:
+        condition: service_healthy
+    mem_limit: 640m
+    networks: [crackvision]
+
+  # --------------------------------------------------------------- service
+  api:
+    build:
+      context: .
+      dockerfile: docker/ml/Dockerfile
+      target: api
+    image: crackvision-api:latest
+    restart: unless-stopped
+    environment:
+      MODEL_SOURCE: ${MODEL_SOURCE:-mlflow}
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+      REGISTRY_MODEL: crackvision-hybrid
+      REGISTRY_ALIAS: champion
+      MODEL_LOCAL_FALLBACK: "true"
+      MODELS_DIR: /opt/crackvision/models
+      ADMIN_TOKEN: ${API_ADMIN_TOKEN}
+      TORCH_THREADS: ${API_TORCH_THREADS:-2}
+      OMP_NUM_THREADS: ${API_TORCH_THREADS:-2}
+    volumes:
+      # Repli si le registre est vide ou injoignable : modeles produits par DVC
+      - ./models:/opt/crackvision/models:ro
+    mem_limit: 1400m
+    networks: [crackvision]
+
+  nginx:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    ports:
+      - "${HTTP_PORT:-8090}:80"
+    volumes:
+      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./docker/nginx/html:/usr/share/nginx/html:ro
+    depends_on: [api]
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    mem_limit: 64m
+    networks: [crackvision]
+
+  # --------------------------------------------------------------- monitoring
+  nginx-exporter:
+    image: nginx/nginx-prometheus-exporter:1.4.2
+    restart: unless-stopped
+    command: ["--nginx.scrape-uri=http://nginx:8080/stub_status"]
+    depends_on: [nginx]
+    mem_limit: 32m
+    networks: [crackvision]
+
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=15d
+      - --web.external-url=http://localhost:${HTTP_PORT:-8090}/prometheus/
+      - --web.route-prefix=/prometheus
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
+      - prometheus-data:/prometheus
+    mem_limit: 256m
+    networks: [crackvision]
+
+  grafana:
+    image: grafana/grafana:12.1.0
+    restart: unless-stopped
+    environment:
+      GF_SERVER_ROOT_URL: http://localhost:${HTTP_PORT:-8090}/grafana/
+      GF_SERVER_SERVE_FROM_SUB_PATH: "true"
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/crackvision.json
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    depends_on: [prometheus]
+    mem_limit: 256m
+    networks: [crackvision]
+
+  # --------------------------------------------------------------- outils
+  trainer:
+    build:
+      context: .
+      dockerfile: docker/ml/Dockerfile
+      target: trainer
+      args:
+        TORCH_VARIANT: ${TRAINER_TORCH:-cpu}
+    image: crackvision-trainer:latest
+    profiles: ["tools"]
+    environment:
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+      CRACKVISION_PROFILE: ${CRACKVISION_PROFILE:-full}
+    volumes:
+      # Le remote DVC local (.dvc-storage/) est dans le depot monte
+      - .:/workspace
+    shm_size: 2gb
+    working_dir: /workspace
+    networks: [crackvision]
+
+  # --------------------------------------------------------------- orchestration
+  airflow-init:
+    <<: *airflow-common
+    restart: "no"
+    user: "0:0"
+    entrypoint: /bin/bash
+    command:
+      - -c
+      - |
+        set -e
+        mkdir -p /opt/airflow/logs && chown -R 50000:0 /opt/airflow/logs
+        /entrypoint airflow db migrate
+        /entrypoint airflow pools set crackvision_dvc 1 "Etapes DVC (une a la fois : verrou du depot)"
+        /entrypoint airflow users create --username "$${AIRFLOW_ADMIN_USER}" \
+          --password "$${AIRFLOW_ADMIN_PASSWORD}" --firstname Admin --lastname CrackVision \
+          --role Admin --email admin@crackvision.local || echo "Utilisateur deja present"
+    environment:
+      <<: *airflow-env
+      AIRFLOW_ADMIN_USER: ${AIRFLOW_ADMIN_USER:-admin}
+      AIRFLOW_ADMIN_PASSWORD: ${AIRFLOW_ADMIN_PASSWORD}
+
+  airflow-apiserver:
+    <<: *airflow-common
+    command: api-server
+    ports:
+      - "127.0.0.1:${AIRFLOW_PORT:-8091}:8080"
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8080/api/v2/monitor/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    mem_limit: 900m
+    depends_on:
+      <<: *airflow-depends
+      airflow-init:
+        condition: service_completed_successfully
+
+  airflow-scheduler:
+    <<: *airflow-common
+    command: scheduler
+    mem_limit: 768m
+    depends_on:
+      <<: *airflow-depends
+      airflow-init:
+        condition: service_completed_successfully
+
+  airflow-dag-processor:
+    <<: *airflow-common
+    command: dag-processor
+    mem_limit: 512m
+    depends_on:
+      <<: *airflow-depends
+      airflow-init:
+        condition: service_completed_successfully
+
+volumes:
+  postgres-data:
+  mlflow-artifacts:
+  prometheus-data:
+  grafana-data:
+  airflow-logs:
+
+networks:
+  crackvision:
+    name: crackvision

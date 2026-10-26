@@ -1,0 +1,161 @@
+# =============================================================================
+# CrackVision - parametres du pipeline (profil "full")
+# Chaque etape DVC declare les cles dont elle depend (voir dvc.yaml).
+# Le profil de fumee (configs/smoke.yaml) surcharge ces valeurs pour les tests.
+# =============================================================================
+
+seed: 42
+
+data:
+  # Source des photos : "ozgenel_seg" (donnees reelles) ou "synthetic" (tests)
+  source: ozgenel_seg
+  ozgenel_seg:
+    # Concrete Crack Segmentation Dataset (Ozgenel, 2019), Mendeley Data, CC BY 4.0
+    # 458 photos 4032x3024 de murs en beton (METU) + masques de fissures
+    url: https://data.mendeley.com/public-files/datasets/jwsn7tfbrp/files/88e685a6-e3c5-423d-845f-89e35a457867/file_downloaded
+    sha256: 1b8458ab6f84dc5086e9af8579e2cabccd3d209df97b46622096a4c105d5a6b2
+    archive_name: concreteCrackSegmentationDataset.rar
+    doi: 10.17632/jwsn7tfbrp.1
+    license: CC BY 4.0
+    # Garder l'archive dans data/external/downloads evite de la retelecharger
+    keep_archive: true
+  synthetic:
+    n_photos: 40
+    width: 1024
+    height: 768
+    max_cracks: 3
+
+prepare:
+  # Facteur de reduction applique aux photos avant decoupage (4032 -> 2016 px)
+  scale: 0.5
+  # Taille des tuiles carrees (en pixels, apres reduction)
+  tile_size: 512
+  # Seuil de binarisation des masques (fournis en JPEG, donc bruites)
+  mask_threshold: 127
+  # Fraction de couverture minimale pour garder un pixel de fissure apres reduction
+  mask_downscale_threshold: 0.25
+  # Fermeture morphologique pour recoller les fragments d'une meme fissure
+  closing_kernel: 5
+  # Aire minimale (px) d'une composante pour devenir une boite englobante
+  min_component_area: 60
+  # Marge (px) sans fissure exigee autour d'une tuile pour la dire saine
+  healthy_margin: 16
+  jpeg_quality: 95
+
+split:
+  # Decoupage stratifie PAR PHOTO : aucune photo n'est partagee entre deux jeux
+  fractions:
+    train: 0.70
+    val: 0.15
+    blind_test: 0.15
+  # Strates : quantiles du taux de fissure x nombre de fissures (1 / 2-3 / 4 et plus)
+  ratio_bins: 3
+  component_bins: [1, 3]
+
+balance:
+  # Part de tuiles avec fissure visee dans le jeu d'entrainement YOLOX
+  positive_fraction: 0.5
+  # Repeat factor sampling : les strates plus rares que ce seuil sont sur-echantillonnees
+  rfs_threshold: 0.25
+  # Bornes de taille de la plus grande boite (fraction de la tuile) : petite / moyenne / grande
+  size_bins: [0.05, 0.25]
+  # Nombre maximal de tuiles saines pour l'autoencodeur (0 = toutes)
+  ae_max_tiles: 0
+
+yolox:
+  variant: s
+  pretrained: true
+  input_size: 512
+  epochs: 60
+  batch_size: 16
+  basic_lr_per_img: 0.00015625
+  warmup_epochs: 3
+  no_aug_epochs: 10
+  min_lr_ratio: 0.05
+  weight_decay: 0.0005
+  mosaic_prob: 1.0
+  mixup_prob: 0.0
+  hsv_prob: 1.0
+  flip_prob: 0.5
+  degrees: 10.0
+  translate: 0.1
+  mosaic_scale: [0.5, 1.5]
+  shear: 2.0
+  multiscale_range: 3
+  ema: true
+  amp: true
+  eval_interval: 2
+  # Arret anticipe apres N evaluations sans progres (0 = desactive)
+  patience: 0
+  selection_metric: ap50
+  test_conf: 0.01
+  nms: 0.5
+  num_workers: 6
+  pretrained_weights:
+    nano:
+      url: https://github.com/Megvii-BaseDetection/YOLOX/releases/download/0.1.1rc0/yolox_nano.pth
+      sha256: cd28f55fbbc1829f99d9ac9b38a16d259a22889739c8728ea877610201feff7b
+    tiny:
+      url: https://github.com/Megvii-BaseDetection/YOLOX/releases/download/0.1.1rc0/yolox_tiny.pth
+      sha256: 9de513de589ac98bb92d3bca53b5af7b9acfa9b0bacb831f7999d0f7afaee8f0
+    s:
+      url: https://github.com/Megvii-BaseDetection/YOLOX/releases/download/0.1.1rc0/yolox_s.pth
+      sha256: f55ded7181e1b0c13285c56e7790b8f0e8f8db590fe4edb37f0b7f345c913a30
+
+autoencoder:
+  # Architecture choisie sur la validation (reglage du 23/10, voir DECISIONS.md, M4 bis)
+  image_size: 256
+  base_channels: 32
+  depth: 5
+  latent_channels: 8
+  epochs: 60
+  batch_size: 32
+  lr: 0.001
+  weight_decay: 0.00001
+  # Poids du terme structurel (1 - SSIM) dans la perte et dans la carte d'anomalie
+  ssim_weight: 0.5
+  # Bruit gaussien ajoute en entree (autoencodeur debruiteur)
+  noise_std: 0.1
+  # Choix du point de controle : "auroc" (validation annotee) ou "loss" (perte sur tuiles saines)
+  selection: auroc
+  eval_interval: 2
+  patience: 10
+  blur_sigma: 4.0
+  # Score d'image = moyenne du top k % de la carte d'anomalie
+  score_topk: 0.01
+  # Quantile des pixels sains (validation) servant de seuil de pixel
+  pixel_quantile: 0.995
+  num_workers: 6
+
+hybrid:
+  # Seuil plancher des detections YOLOX transmises a la fusion
+  det_conf_floor: 0.01
+  # Evidence de l'autoencodeur dans une boite = moyenne du top k % de la carte
+  box_evidence_topk: 0.10
+  # Filet de securite : zones anormales sans boite YOLOX
+  unknown_quantile: 0.999
+  unknown_min_area: 400
+  unknown_max_overlap: 0.10
+  cv_folds: 5
+  # Regularisation de la regression logistique (inverse de la penalite L2)
+  logistic_c: 1.0
+
+evaluation:
+  iou_threshold: 0.5
+  bootstrap: 2000
+  n_examples: 6
+  # Taille (px) des cartes d'anomalie sous-echantillonnees pour les metriques au pixel
+  pixel_eval_size: 128
+  # Test de resistance (blind test) : tuiles saines recevant un defaut hors classe synthetique
+  stress_tiles: 100
+
+promotion:
+  # Seuils minimaux sur le blind test pour accorder l'alias "champion"
+  gates:
+    yolox_ap50: 0.30
+    autoencoder_auroc: 0.70
+    hybrid_f1: 0.70
+  registry:
+    yolox: crackvision-yolox
+    autoencoder: crackvision-autoencoder
+    hybrid: crackvision-hybrid

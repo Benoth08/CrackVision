@@ -1,0 +1,39 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "crackvision"
+version = "2.0.0"
+description = "Detection de fissures dans le beton : YOLOX (supervise), autoencodeur (non supervise) et modele hybride"
+readme = "README.md"
+requires-python = ">=3.11"
+# Les versions exactes sont figees dans requirements/*.txt (une liste par image Docker).
+dependencies = []
+
+[project.scripts]
+crackvision = "crackvision.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 110
+target-version = "py312"
+src = ["src", "tests", "airflow/dags"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM"]
+# B008 : FastAPI declare ses dependances (File, Query) dans les valeurs par defaut.
+ignore = ["B008"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "slow: tests longs (pipeline complet de fumee sur donnees synthetiques)",
+]
+addopts = "-q -ra"
+filterwarnings = [
+    "ignore::DeprecationWarning",
+    "ignore::UserWarning",
+]

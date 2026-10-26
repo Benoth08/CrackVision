@@ -1,0 +1,182 @@
+# =============================================================================
+# CrackVision - pipeline DVC
+#   ingest -> index -> split -> tile@{train,val,blind_test} -> balance
+#          -> train_yolox + train_autoencoder -> calibrate -> evaluate@{val,blind_test}
+# Regle : seul evaluate@blind_test (et data_report, qui ne fait que compter les
+# tuiles) lit le blind test. tests/test_dvc_pipeline.py le verifie.
+# =============================================================================
+
+stages:
+  ingest:
+    cmd: python -m crackvision.cli ingest
+    deps:
+      - src/crackvision/data/sources.py
+      - src/crackvision/data/synthetic.py
+    params:
+      - seed
+      - data
+    outs:
+      - data/raw
+
+  index:
+    cmd: python -m crackvision.cli index
+    deps:
+      - data/raw
+      - src/crackvision/data/prepare.py
+    params:
+      - prepare.scale
+      - prepare.mask_threshold
+      - prepare.mask_downscale_threshold
+      - prepare.closing_kernel
+      - prepare.min_component_area
+    outs:
+      - data/interim/photos.csv
+
+  split:
+    cmd: python -m crackvision.cli split
+    deps:
+      - data/interim/photos.csv
+      - src/crackvision/data/split.py
+    params:
+      - seed
+      - split
+    outs:
+      - data/processed/splits
+
+  tile:
+    foreach:
+      - train
+      - val
+      - blind_test
+    do:
+      cmd: python -m crackvision.cli tile --split ${item}
+      deps:
+        - data/raw
+        - data/interim/photos.csv
+        - data/processed/splits
+        - src/crackvision/data/prepare.py
+        - src/crackvision/data/tiling.py
+        - src/crackvision/data/coco.py
+      params:
+        - prepare
+      outs:
+        - data/processed/${item}
+
+  balance:
+    cmd: python -m crackvision.cli balance
+    deps:
+      - data/processed/train
+      - src/crackvision/data/balance.py
+    params:
+      - seed
+      - balance
+    outs:
+      - data/processed/train_balanced
+
+  data_report:
+    cmd: python -m crackvision.cli data-report
+    deps:
+      - data/raw
+      - data/interim/photos.csv
+      - data/processed/splits
+      - data/processed/train
+      - data/processed/val
+      - data/processed/blind_test
+      - data/processed/train_balanced
+      - src/crackvision/evaluation/figures.py
+    outs:
+      - reports/data
+
+  train_yolox:
+    cmd: python -m crackvision.cli train-yolox
+    deps:
+      - data/processed/train
+      - data/processed/train_balanced
+      - data/processed/val
+      - src/crackvision/models/yolox_model.py
+      - src/crackvision/training/train_yolox.py
+      - src/crackvision/evaluation/metrics.py
+    params:
+      - seed
+      - prepare.scale
+      - prepare.tile_size
+      - yolox
+    outs:
+      - models/yolox
+
+  train_autoencoder:
+    cmd: python -m crackvision.cli train-autoencoder
+    deps:
+      - data/processed/train
+      - data/processed/train_balanced
+      - data/processed/val
+      - src/crackvision/models/autoencoder.py
+      - src/crackvision/training/train_autoencoder.py
+    params:
+      - seed
+      - autoencoder
+    outs:
+      - models/autoencoder
+
+  calibrate:
+    cmd: python -m crackvision.cli calibrate
+    deps:
+      - models/yolox
+      - models/autoencoder
+      - data/processed/val
+      - src/crackvision/models/hybrid.py
+      - src/crackvision/training/fit_hybrid.py
+      - src/crackvision/inference.py
+    params:
+      - seed
+      - hybrid
+      - evaluation.iou_threshold
+    outs:
+      - models/hybrid
+
+  evaluate:
+    foreach:
+      - val
+      - blind_test
+    do:
+      cmd: python -m crackvision.cli evaluate --split ${item}
+      deps:
+        - models/yolox
+        - models/autoencoder
+        - models/hybrid
+        - data/raw
+        - data/interim/photos.csv
+        - data/processed/splits
+        - data/processed/${item}
+        - src/crackvision/evaluation
+        - src/crackvision/inference.py
+      params:
+        - seed
+        - evaluation
+      metrics:
+        - reports/${item}/metrics.json:
+            cache: false
+      outs:
+        - reports/${item}/figures
+        - reports/${item}/plots
+        - reports/${item}/predictions.csv
+
+plots:
+  - Precision-rappel des tuiles (blind test):
+      x: recall
+      y:
+        reports/blind_test/plots/pr_yolox.csv: precision
+        reports/blind_test/plots/pr_autoencoder.csv: precision
+        reports/blind_test/plots/pr_hybrid.csv: precision
+  - ROC des tuiles (blind test):
+      x: fpr
+      y:
+        reports/blind_test/plots/roc_yolox.csv: tpr
+        reports/blind_test/plots/roc_autoencoder.csv: tpr
+        reports/blind_test/plots/roc_hybrid.csv: tpr
+  - models/yolox/history.csv:
+      x: epoch
+      y: total_loss
+  - models/autoencoder/history.csv:
+      x: epoch
+      y: [train_loss, val_loss]
